@@ -1,0 +1,6 @@
+{
+  "name": "Diamond Mine Africa",
+  "description": "Mine Today. Grow Tomorrow. Full-stack customer portal, VIP catalogue, referral dashboard, and admin system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
