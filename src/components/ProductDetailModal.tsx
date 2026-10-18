@@ -5,6 +5,7 @@ import { X, ShieldCheck, AlertCircle, ShoppingCart, Info } from 'lucide-react';
 import { useStore } from '../hooks/useStore.ts';
 import { store } from '../services/store.ts';
 import { isSupabaseConfigured } from '../services/supabase.ts';
+import { purchaseVipProduct, refreshServerVipData } from '../services/vip.ts';
 
 interface ProductDetailModalProps {
   product: VipProduct | null;
@@ -20,27 +21,55 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const { currentUser, userOwnedProducts } = useStore();
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
+  const liveVipPurchaseEnabled = isSupabaseConfigured && import.meta.env.VITE_ENABLE_LIVE_VIP_PURCHASES === 'true';
+
   if (!product) return null;
 
   const isOwned = userOwnedProducts.some(
     (p) => p.userId === currentUser?.id && p.productId === product.id && p.status === 'active'
   );
 
-  const handlePurchase = () => {
+  const handlePurchase = async () => {
     if (!currentUser) return;
     setFeedback(null);
 
-    if (isSupabaseConfigured) {
-      setFeedback({ type: 'error', message: 'Live VIP purchase is disabled. No wallet was charged. A verified product-delivery, revenue, and compliant payout model is required before real-money VIP transactions can be enabled.' });
+    if (isSupabaseConfigured && !liveVipPurchaseEnabled) {
+      setFeedback({
+        type: 'error',
+        message: 'Live VIP purchase is disabled. No wallet was charged. Verify real product delivery, revenue, and payout compliance before enabling real-money purchases.',
+      });
+      return;
+    }
+
+    if (liveVipPurchaseEnabled) {
+      try {
+        const result = await purchaseVipProduct(product.id);
+        store.updateServerWalletBalance(result.walletBalance);
+        setFeedback({ type: 'success', message: result.message });
+
+        try {
+          await refreshServerVipData(currentUser.id);
+        } catch {
+          setFeedback({
+            type: 'success',
+            message: result.message + ' Reopen the VIP page if the product list has not refreshed.',
+          });
+        }
+
+        setTimeout(() => onClose(), 1800);
+      } catch (error) {
+        setFeedback({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'VIP purchase failed. Please try again.',
+        });
+      }
       return;
     }
 
     const res = store.purchaseProduct(currentUser.id, product.id);
     if (res.success) {
       setFeedback({ type: 'success', message: res.message });
-      setTimeout(() => {
-        onClose();
-      }, 1800);
+      setTimeout(() => onClose(), 1800);
     } else {
       setFeedback({ type: 'error', message: res.message });
     }
@@ -179,15 +208,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           <button
             onClick={handlePurchase}
-            disabled={isSupabaseConfigured || (isOwned && product.isOneTime)}
+            disabled={(isSupabaseConfigured && !liveVipPurchaseEnabled) || (isOwned && product.isOneTime)}
             className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 ${
-              isSupabaseConfigured || (isOwned && product.isOneTime)
+              (isSupabaseConfigured && !liveVipPurchaseEnabled) || (isOwned && product.isOneTime)
                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-98 cursor-pointer'
             }`}
           >
             <ShoppingCart className="w-4 h-4" />
-            <span>{isSupabaseConfigured ? 'Not Live Yet' : (isOwned && product.isOneTime ? 'Already Owned' : 'Confirm Purchase')}</span>
+            <span>{(isSupabaseConfigured && !liveVipPurchaseEnabled) ? 'Not Live Yet' : (isOwned && product.isOneTime ? 'Already Owned' : 'Confirm Purchase')}</span>
           </button>
         </div>
       </div>
