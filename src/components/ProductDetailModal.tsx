@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { VipProduct } from '../types.ts';
 import { GemstoneIcon } from './GemstoneIcon.tsx';
-import { X, ShoppingCart, Info } from 'lucide-react';
+import { X, ShieldCheck, AlertCircle, ShoppingCart, Info } from 'lucide-react';
 import { useStore } from '../hooks/useStore.ts';
 import { store } from '../services/store.ts';
 import { isSupabaseConfigured } from '../services/supabase.ts';
-import { purchaseVipProduct, refreshServerVipData } from '../services/vip.ts';
 
 interface ProductDetailModalProps {
   product: VipProduct | null;
@@ -20,7 +19,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 }) => {
   const { currentUser, userOwnedProducts } = useStore();
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
-  const [isPurchasing, setIsPurchasing] = useState(false);
 
   if (!product) return null;
 
@@ -28,39 +26,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     (p) => p.userId === currentUser?.id && p.productId === product.id && p.status === 'active'
   );
 
-  const handlePurchase = async () => {
-    if (!currentUser || isPurchasing || !product.isAvailable) return;
+  const handlePurchase = () => {
+    if (!currentUser) return;
     setFeedback(null);
 
     if (isSupabaseConfigured) {
-      setIsPurchasing(true);
-      try {
-        const result = await purchaseVipProduct(product.id);
-        const successMessage = `${product.name} purchased for ${result.price.toLocaleString()} ETB. New wallet balance: ${result.walletBalance.toLocaleString()} ETB.`;
-        setFeedback({ type: 'success', message: successMessage });
-        try {
-          await refreshServerVipData(currentUser.id);
-        } catch (refreshError) {
-          // The purchase RPC has already committed; do not tell the customer it failed because a read refresh failed.
-          console.error('VIP purchase succeeded but account refresh failed:', refreshError);
-          setFeedback({ type: 'success', message: `${successMessage} Refresh the page if the balance or VIP card does not update immediately.` });
-        }
-        setTimeout(() => onClose(), 1800);
-      } catch (error) {
-        setFeedback({
-          type: 'error',
-          message: error instanceof Error ? error.message : 'VIP purchase failed. No confirmation was received.',
-        });
-      } finally {
-        setIsPurchasing(false);
-      }
+      setFeedback({ type: 'error', message: 'Live VIP purchase is disabled. No wallet was charged. A verified product-delivery, revenue, and compliant payout model is required before real-money VIP transactions can be enabled.' });
       return;
     }
 
     const res = store.purchaseProduct(currentUser.id, product.id);
     if (res.success) {
       setFeedback({ type: 'success', message: res.message });
-      setTimeout(() => onClose(), 1800);
+      setTimeout(() => {
+        onClose();
+      }, 1800);
     } else {
       setFeedback({ type: 'error', message: res.message });
     }
@@ -129,28 +109,36 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 {product.price.toLocaleString()} ETB
               </span>
             </div>
-            <div className="flex justify-between items-center">
-              <span className="text-slate-700 font-medium">{isSupabaseConfigured ? 'Configured daily figure' : 'Demo daily figure'}</span>
-              <span className="font-black text-emerald-600 tabular-nums">
-                {product.dailyReturn.toLocaleString()} ETB / Day
-              </span>
-            </div>
-            <div className="flex justify-between items-center border-t border-emerald-200 pt-2">
-              <span className="text-slate-900 font-bold">Illustrative total (not guaranteed)</span>
-              <span className="font-black text-emerald-600 text-base tabular-nums">
-                {((product.dailyReturn * product.periodDays) || product.illustrativeTotal).toLocaleString()} ETB
-              </span>
-            </div>
+            {!isSupabaseConfigured ? (
+              <>
+                <div className="flex justify-between items-center">
+                  <span className="text-slate-700 font-medium">Demo Daily Figure</span>
+                  <span className="font-black text-emerald-600 tabular-nums">
+                    +{product.dailyReturn.toLocaleString()} ETB / Day
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-emerald-200 pt-2">
+                  <span className="text-slate-900 font-bold">Illustrative Total</span>
+                  <span className="font-black text-emerald-600 text-base tabular-nums">
+                    {((product.dailyReturn * product.periodDays) || product.illustrativeTotal).toLocaleString()} ETB
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div className="border-t border-emerald-200 pt-2 text-[11px] leading-5 font-semibold text-amber-900">
+                Daily payouts are not enabled for real-money accounts. No return is promised or credited by this app.
+              </div>
+            )}
           </div>
 
-          {/* Safety notice: live purchases are server-validated; payout eligibility requires an independently funded reserve. */}
+          {/* Safety notice: real-money VIP purchases stay disabled until product and payout claims are verified. */}
           <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-[11px] text-amber-900 flex items-start gap-2">
             <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
             <span>
               {isSupabaseConfigured ? (
-                <><strong>Important:</strong> Your VIP purchase will deduct the displayed price from the server wallet and save an ownership record. Daily figures are not guaranteed; a mining claim credits your wallet only when the administrator-funded reward reserve has sufficient verified funds. Displayed totals are illustrative, not a promise of earnings.</>
+                <><strong>Live transaction status:</strong> VIP purchases and daily payouts are not enabled for database-connected accounts. No wallet funds will be charged. Verified product delivery, underlying revenue, and appropriate legal/compliance review are needed first.</>
               ) : (
-                <><strong>Demo notice:</strong> Displayed daily figures are illustrative only. This browser-only demo does not represent verified mining income or guaranteed payouts.</>
+                <><strong>Daily figures:</strong> Illustrative only; earnings are not guaranteed.</>
               )}
             </span>
           </div>
@@ -165,7 +153,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               }`}
             >
               <span>{feedback.message}</span>
-              {feedback.type === 'error' && /insufficient|balance/i.test(feedback.message) && (
+              {feedback.type === 'error' && (
                 <button
                   onClick={() => {
                     onClose();
@@ -191,15 +179,15 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           <button
             onClick={handlePurchase}
-            disabled={isPurchasing || !product.isAvailable || (isOwned && product.isOneTime)}
+            disabled={isSupabaseConfigured || (isOwned && product.isOneTime)}
             className={`flex-1 py-2.5 px-4 rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 ${
-              isPurchasing || !product.isAvailable || (isOwned && product.isOneTime)
+              isSupabaseConfigured || (isOwned && product.isOneTime)
                 ? 'bg-slate-200 text-slate-500 cursor-not-allowed'
                 : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-98 cursor-pointer'
             }`}
           >
             <ShoppingCart className="w-4 h-4" />
-            <span>{isPurchasing ? 'Purchasing…' : (!product.isAvailable ? 'Unavailable' : (isOwned && product.isOneTime ? 'Already Owned' : 'Confirm Purchase'))}</span>
+            <span>{isSupabaseConfigured ? 'Not Live Yet' : (isOwned && product.isOneTime ? 'Already Owned' : 'Confirm Purchase')}</span>
           </button>
         </div>
       </div>

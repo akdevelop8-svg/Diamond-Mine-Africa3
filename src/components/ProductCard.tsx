@@ -17,6 +17,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onViewDetails,
   onPurchase,
 }) => {
+  const liveVipPurchaseDisabled = isSupabaseConfigured;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200/90 hover:border-blue-300 shadow-xs hover:shadow-md transition-all flex flex-col justify-between overflow-hidden group">
@@ -56,7 +57,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </span>
       </div>
 
-      {/* Configured catalogue figures are not guaranteed income. */}
+      {/* Illustrative demo figures only; this prototype does not generate or pay real returns. */}
       <div className="px-4 py-2.5 bg-slate-50/70 border-t border-b border-slate-100 flex flex-col gap-1.5">
         {/* Price in GREEN */}
         <div className="flex items-baseline justify-between">
@@ -66,7 +67,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </span>
         </div>
 
-        {!isSupabaseConfigured ? (
+        {!liveVipPurchaseDisabled ? (
           <>
             {/* Demo-only illustration; it never represents credited wallet funds. */}
             <div className="flex items-baseline justify-between text-xs">
@@ -84,7 +85,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </>
         ) : (
           <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] leading-4 text-amber-900">
-            Daily figures are not guaranteed. Mining credits require sufficient funds in the verified reward reserve.
+            Live payouts are not enabled. Demo daily figures are not verified income.
           </p>
         )}
       </div>
@@ -101,15 +102,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
         <button
           onClick={() => onPurchase(product)}
-          disabled={!product.isAvailable || (isOwned && product.isOneTime)}
+          disabled={liveVipPurchaseDisabled || (isOwned && product.isOneTime)}
           className={`w-full py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-xs ${
-            !product.isAvailable || (isOwned && product.isOneTime)
+            liveVipPurchaseDisabled || (isOwned && product.isOneTime)
               ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
               : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-98 cursor-pointer'
           }`}
         >
           <ShoppingCart className="w-3.5 h-3.5" />
-          <span>{!product.isAvailable ? 'Unavailable' : (isOwned && product.isOneTime ? 'Owned' : 'Purchase')}</span>
+          <span>{liveVipPurchaseDisabled ? 'Not Live Yet' : (isOwned && product.isOneTime ? 'Owned' : 'Purchase')}</span>
         </button>
       </div>
     </div>
