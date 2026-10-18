@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useStore } from './hooks/useStore.ts';
+import { useStore } from "./useStore.ts";
 import { Header } from './components/Header.tsx';
 import { BottomNav, TabKey } from './components/BottomNav.tsx';
 import { HomeView } from './views/HomeView.tsx';
