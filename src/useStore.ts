@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { store, AppState } from '../services/store.ts';
-import { fetchDmaProfile, isSupabaseConfigured, supabase } from '../services/supabase.ts';
-import { refreshServerVipData } from '../services/vip.ts';
+import { store, type AppState } from './services/store.ts';
+import { fetchDmaProfile, isSupabaseConfigured, supabase } from './services/supabase.ts';
+import { refreshServerVipData } from './services/vip.ts';
 
 export function useStore(): AppState {
   const [state, setState] = useState<AppState>(store.getState());
