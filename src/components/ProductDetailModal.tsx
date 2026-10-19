@@ -21,7 +21,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const { currentUser, userOwnedProducts } = useStore();
   const [feedback, setFeedback] = useState<{ type: 'error' | 'success'; message: string } | null>(null);
 
-  const liveVipPurchaseEnabled = isSupabaseConfigured && import.meta.env.VITE_ENABLE_LIVE_VIP_PURCHASES === 'true';
+  const liveVipPurchaseEnabled = isSupabaseConfigured && (import.meta.env.VITE_ENABLE_LIVE_VIP_PURCHASES === 'true' || import.meta.env.VITE_VIP_PURCHASES_ENABLED === 'true');
 
   if (!product) return null;
 
