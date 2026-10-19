@@ -17,6 +17,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onViewDetails,
   onPurchase,
 }) => {
+  // Staging safety: opening the product modal is allowed, but live purchases
+  // remain blocked in the modal until the backend and revenue/compliance checks
+  // are complete.
   const liveVipPurchaseDisabled = isSupabaseConfigured;
 
   return (
@@ -101,16 +104,18 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </button>
 
         <button
+          // Keep the live transaction disabled, but let the user open the
+          // details modal to read the explanation and staging status.
           onClick={() => onPurchase(product)}
-          disabled={liveVipPurchaseDisabled || (isOwned && product.isOneTime)}
+          disabled={isOwned && product.isOneTime}
           className={`w-full py-2 px-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1 shadow-xs ${
-            liveVipPurchaseDisabled || (isOwned && product.isOneTime)
+            isOwned && product.isOneTime
               ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
               : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-98 cursor-pointer'
           }`}
         >
           <ShoppingCart className="w-3.5 h-3.5" />
-          <span>{liveVipPurchaseDisabled ? 'Not Live Yet' : (isOwned && product.isOneTime ? 'Owned' : 'Purchase')}</span>
+          <span>{isOwned && product.isOneTime ? 'Owned' : (liveVipPurchaseDisabled ? 'View Purchase Info' : 'Purchase')}</span>
         </button>
       </div>
     </div>
